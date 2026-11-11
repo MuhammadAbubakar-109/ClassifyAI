@@ -6,7 +6,11 @@ from src.api.config import settings
 from src.api.schemas import PredictRequest, PredictResponse
 from src.ml import predict as engine
 
-app = FastAPI(title=settings.app_name, version="1.0.0")
+app = FastAPI(
+    title=settings.app_name,
+    version="1.0.0",
+    root_path="/api"
+)
 
 # Allow the React website to call this API from the browser.
 app.add_middleware(
@@ -33,43 +37,55 @@ def check_model_name(name: str | None) -> None:
             status_code=400, detail=f"Unknown model '{name}'. Available: {available}"
         )
 
-
-@app.get("/health")
+@app.get("/api/health")
 def health():
-    return {"status": "ok", "models_loaded": engine.available_models()}
+    return {
+        "status": "ok",
+        "models_loaded": engine.available_models()
+    }
 
 
-@app.get("/models")
+@app.get("/api/models")
 def list_models():
     best = get_metadata()["best_model"]
     models = [
-        {"id": name, "name": engine.pretty(name), "is_best": name == best}
+        {
+            "id": name,
+            "name": engine.pretty(name),
+            "is_best": name == best
+        }
         for name in engine.available_models()
     ]
     return {"best_model": best, "models": models}
 
 
-@app.get("/options")
+@app.get("/api/options")
 def options():
     return get_metadata()["options"]
 
 
-@app.get("/model-info")
+@app.get("/api/model-info")
 def model_info():
     meta = get_metadata()
     keys = [
-        "trained_at", "best_model", "target", "features",
-        "excluded_leaky_columns", "n_rows", "default_rate", "comparison",
+        "trained_at",
+        "best_model",
+        "target",
+        "features",
+        "excluded_leaky_columns",
+        "n_rows",
+        "default_rate",
+        "comparison",
     ]
     return {key: meta[key] for key in keys}
 
 
-@app.post("/predict", response_model=PredictResponse)
+@app.post("/api/predict", response_model=PredictResponse)
 def predict(request: PredictRequest):
     check_model_name(request.model)
     return engine.predict(request.model_dump())
 
 
-@app.post("/predict-all")
+@app.post("/api/predict-all")
 def predict_all(request: PredictRequest):
     return {"results": engine.predict_all(request.model_dump())}
